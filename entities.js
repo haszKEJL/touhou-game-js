@@ -8,6 +8,8 @@ export class Player {
         this.width = 30;
         this.height = 40;
         this.reset();
+
+        this.powerStars = 0; // Liczba zebranych gwiazdek mocy
     }
     
     reset() {
@@ -17,6 +19,7 @@ export class Player {
         this.focusSpeed = CONFIG.player.focusSpeed;
         this.color = '#33ccff';
         this.bullets = [];
+        this.powerStars = 0; // Reset liczby gwiazdek
         this.shootCooldown = 0;
         this.maxShootCooldown = CONFIG.player.maxShootCooldown;
         this.focusing = false;
@@ -69,11 +72,80 @@ export class Player {
     }
     
     shoot() {
-        this.bullets.push(this.createBullet(this.x + this.width / 2 - 2, this.y, -1));
+        // Różne typy strzałów zależne od liczby zebranych gwiazdek
+        if (this.powerStars >= 16) {
+            // Poziom 4 (16+ gwiazdek): Poczwórny strzał - jeden prosty, dwa pod kątem 20° i dwa pod kątem 40°
+            const angle1 = -20 * (Math.PI / 180);
+            const angle2 = 20 * (Math.PI / 180);
+            const angle3 = -40 * (Math.PI / 180);
+            const angle4 = 40 * (Math.PI / 180);
+            
+            // Strzał środkowy (prosty)
+            this.bullets.push(this.createBullet(this.x + this.width / 2 - 2, this.y, -1));
+            
+            // Strzały pod mniejszym kątem
+            this.bullets.push(this.createAngledBullet(this.x + this.width / 2 - 2, this.y, angle1));
+            this.bullets.push(this.createAngledBullet(this.x + this.width / 2 - 2, this.y, angle2));
+            
+            // Strzały pod większym kątem
+            this.bullets.push(this.createAngledBullet(this.x + this.width / 2 - 2, this.y, angle3));
+            this.bullets.push(this.createAngledBullet(this.x + this.width / 2 - 2, this.y, angle4));
+        } 
+        else if (this.powerStars >= 11) {
+            // Poziom 3 (11-15 gwiazdek): Potrójny strzał - jeden prosty i dwa pod kątem 25 stopni
+            const leftAngle = -25 * (Math.PI / 180);
+            const rightAngle = 25 * (Math.PI / 180);
+            
+            // Strzał środkowy (prosty)
+            this.bullets.push(this.createBullet(this.x + this.width / 2 - 2, this.y, -1));
+            
+            // Strzały boczne pod kątem
+            this.bullets.push(this.createAngledBullet(this.x + this.width / 2 - 2, this.y, leftAngle));
+            this.bullets.push(this.createAngledBullet(this.x + this.width / 2 - 2, this.y, rightAngle));
+        } 
+        else if (this.powerStars >= 6) {
+            // Poziom 2 (6-10 gwiazdek): Podwójny strzał pod kątem 15 stopni
+            const leftAngle = -15 * (Math.PI / 180);
+            const rightAngle = 15 * (Math.PI / 180);
+            
+            // Strzały boczne pod kątem
+            this.bullets.push(this.createAngledBullet(this.x + this.width / 2 - 2, this.y, leftAngle));
+            this.bullets.push(this.createAngledBullet(this.x + this.width / 2 - 2, this.y, rightAngle));
+        } 
+        else {
+            // Poziom 1 (0-5 gwiazdek): Standardowy pojedynczy strzał
+            this.bullets.push(this.createBullet(this.x + this.width / 2 - 2, this.y, -1));
+        }
+        
         this.shootCooldown = this.maxShootCooldown;
     }
+    // Zmodyfikowana metoda addPowerStar:
+    addPowerStar() {
+        this.powerStars++;
+        
+        // Efekt wizualny lub dźwiękowy przy osiągnięciu progu ulepszeń
+        if (this.powerStars === 6 || this.powerStars === 11 || this.powerStars === 16) {
+            const powerLevel = this.powerStars >= 16 ? 4 : (this.powerStars >= 11 ? 3 : 2);
+            console.log(`Power level up! Level ${powerLevel}`);
+            // Tutaj można dodać efekt wizualny lub dźwiękowy ulepszenia
+        }
+    }
     
+    
+    // Zmodyfikowana metoda createBullet dla spójności kolorów:
     createBullet(x, y, directionY = -1) {
+        // Kolor zależny od poziomu ulepszeń
+        let bulletColor;
+        if (this.powerStars >= 16) {
+            bulletColor = '#ff3399'; // różowy dla poziomu 4
+        } else if (this.powerStars >= 11) {
+            bulletColor = '#ff66ff'; // jasny fioletowy dla poziomu 3
+        } else if (this.powerStars >= 6) {
+            bulletColor = '#66ffaa'; // turkusowy dla poziomu 2
+        } else {
+            bulletColor = '#66ffff'; // cyjan dla poziomu 1
+        }
+        
         return {
             x: x,
             y: y,
@@ -81,17 +153,58 @@ export class Player {
             height: 16,
             speed: CONFIG.defaults.bulletSpeed,
             directionY: directionY,
-            color: '#66ffff',
+            color: bulletColor,
         };
     }
+
+    // Zmodyfikowana metoda createAngledBullet dla lepszej wizualnej prezentacji strzałów:
+createAngledBullet(x, y, angle) {
+    const speed = CONFIG.defaults.bulletSpeed;
+    const directionX = Math.sin(angle) * speed;
+    const directionY = Math.cos(angle) * speed * -1;
+    
+    // Kolor zależny od poziomu ulepszeń
+    let bulletColor;
+    if (this.powerStars >= 16) {
+        bulletColor = '#ff3399'; // różowy dla poziomu 4
+    } else if (this.powerStars >= 11) {
+        bulletColor = '#ff66ff'; // jasny fioletowy dla poziomu 3
+    } else if (this.powerStars >= 6) {
+        bulletColor = '#66ffaa'; // turkusowy dla poziomu 2
+    } else {
+        bulletColor = '#66ffff'; // cyjan dla poziomu 1
+    }
+    
+    return {
+        x: x,
+        y: y,
+        width: 4,
+        height: 16,
+        speed: speed,
+        directionX: directionX,
+        directionY: directionY,
+        color: bulletColor,
+        angle: angle // Zapisujemy kąt dla łatwiejszego rysowania
+    };
+}   
     
     updateBullets() {
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const bullet = this.bullets[i];
-            bullet.y += bullet.speed * bullet.directionY;
+            
+            if (bullet.directionX !== undefined) {
+                // Pocisk pod kątem
+                bullet.x += bullet.directionX;
+                bullet.y += bullet.directionY;
+            } else {
+                // Standardowy pocisk
+                bullet.y += bullet.speed * bullet.directionY;
+            }
             
             // Usuwanie pocisków poza ekranem
-            if (bullet.y + bullet.height < 0) {
+            if (bullet.y + bullet.height < 0 || 
+                bullet.x + bullet.width < 0 || 
+                bullet.x > this.canvas.width) {
                 this.bullets.splice(i, 1);
             }
         }
@@ -122,7 +235,18 @@ export class Player {
         // Rysowanie pocisków gracza
         for (const bullet of this.bullets) {
             ctx.fillStyle = bullet.color;
-            ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+            if (bullet.directionX !== undefined) {
+                // Rysowanie pocisku pod kątem
+                ctx.save();
+                ctx.translate(bullet.x, bullet.y);
+                const angle = Math.atan2(bullet.directionX, -bullet.directionY); // Obliczenie kąta obrotu
+                ctx.rotate(angle);
+                ctx.fillRect(-bullet.width/2, -bullet.height/2, bullet.width, bullet.height);
+                ctx.restore();
+            } else {
+                // Standardowy pocisk
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+            }
         }
     }
     
@@ -337,6 +461,89 @@ export class Enemy {
         const barColor = this.isBoss ? '#ff3333' : '#00ff00';
         ctx.fillStyle = barColor;
         ctx.fillRect(this.x, this.y - healthBarHeight - 2, healthBarWidth * healthPercent, healthBarHeight);
+    }
+}
+// Klasa gwiazdki (powerup)
+export class Star {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = CONFIG.powerups.starWidth || 15;
+        this.height = CONFIG.powerups.starHeight || 15;
+        this.speedY = 1.5; // Prędkość opadania
+        this.rotation = 0;
+        this.rotationSpeed = CONFIG.powerups.starRotationSpeed || 0.1;
+        this.collected = false; // Flaga wskazująca, czy gwiazdka została zebrana
+    }
+    
+    // Aktualizacja pozycji gwiazdki
+    update(canvasHeight) {
+        // Ruch w dół
+        this.y += this.speedY;
+        
+        // Obracanie gwiazdki
+        this.rotation += this.rotationSpeed;
+        
+        // Sprawdza czy gwiazdka dotknęła dołu ekranu
+        return this.y > canvasHeight;
+    }
+    
+    // Rysowanie gwiazdki
+    draw(ctx) {
+        // Nie rysuj, jeśli została zebrana
+        if (this.collected) return;
+        
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        
+        if (IMAGES.star && IMAGES.star.complete) {
+            // Rysuj obrazek gwiazdki
+            ctx.drawImage(
+                IMAGES.star,
+                -this.width / 2,
+                -this.height / 2,
+                this.width,
+                this.height
+            );
+        } else {
+            // Alternatywnie rysuj gwiazdkę z kształtów
+            this.drawStarShape(ctx);
+        }
+        
+        ctx.restore();
+    }
+    
+    // Rysowanie kształtu gwiazdki (fallback)
+    drawStarShape(ctx) {
+        const spikes = 5;
+        const outerRadius = this.width / 2;
+        const innerRadius = outerRadius / 2;
+        
+        ctx.beginPath();
+        ctx.fillStyle = '#ffdd00';
+        
+        for (let i = 0; i < spikes * 2; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = (Math.PI * i) / spikes;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        
+        ctx.closePath();
+        ctx.fill();
+        
+        // Dodaj błysk w środku
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, 0, innerRadius / 3, 0, Math.PI * 2);
+        ctx.fill();
     }
 }
 

@@ -1,4 +1,5 @@
 // Ładowanie i zarządzanie zasobami gry
+import { CONFIG } from './config.js'; // Dodaj ten import!
 
 // Obrazki
 export const IMAGES = {};
@@ -30,7 +31,8 @@ async function loadImages() {
         backgroundFar: 'background-far.jpg',
         // Dodaj portrety postaci
         playerPortrait: 'player-portrait.png',
-        bossPortrait: 'boss-portrait.png'
+        bossPortrait: 'boss-portrait.png',
+        star: CONFIG.powerups.starImagePath || 'star.png',
     };
     
     const promises = [];

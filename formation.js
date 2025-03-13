@@ -10,6 +10,9 @@ export class FormationManager {
         this.formationCooldown = CONFIG.formations.cooldown;
         this.formationActive = false;
         this.gameEnemiesRef = null; // Referencja do tablicy przeciwników
+        
+        // Dodaj tę linię - pozycja zatrzymania formacji (40% ekranu od góry)
+        this.formationStopPosition = this.canvas.height * 0.4;
     }
     
     // Dodaj metodę ustawiającą referencję do tablicy przeciwników
@@ -25,6 +28,9 @@ export class FormationManager {
     }
     
     update(enemies) {
+        // Dodaj debugowanie
+        //console.log(`Formation active: ${this.formationActive}, Enemies left: ${this.formationEnemiesLeft}, Formation cooldown: ${this.formationCooldown}`);
+        
         // Aktualizuj referencję do tablicy przeciwników
         this.gameEnemiesRef = enemies;
         
@@ -47,9 +53,11 @@ export class FormationManager {
                 }
             }
             
-            if (formationComplete && this.formationEnemiesLeft <= 0) {
+            // Dodaj zabezpieczenie - jeśli nie ma przeciwników z formationIndex, zresetuj formację
+            if (formationComplete) {
                 this.formationActive = false;
                 this.currentFormation = -1;
+                this.formationEnemiesLeft = 0;  // Dodane zabezpieczenie
             }
         }
     }
@@ -109,7 +117,7 @@ export class FormationManager {
                     movementType: 'hover',
                     x: spacing * (i + 1) - 15,  // Centrowanie przeciwnika (15 to połowa szerokości)
                     y: baseY,
-                    targetY: 100 + Math.random() * 50,
+                    targetY: this.formationStopPosition + Math.random() * 20,  // Zatrzymanie na 40% wysokości ekranu
                     maxShootCooldown: 60 + i * 20
                 });
                 
@@ -149,7 +157,7 @@ export class FormationManager {
                     movementType: 'sine',
                     x: centerX + xOffset - 15,  // 15 to połowa szerokości
                     y: baseY + Math.abs(xOffset) / 2,
-                    targetY: 120,
+                    targetY: this.formationStopPosition,  // Zatrzymanie na 40% wysokości ekranu
                     moveParameters: {
                         baseX: centerX + xOffset - 15,
                         amplitude: 20,
@@ -190,7 +198,7 @@ export class FormationManager {
                     movementType: 'hover',
                     x: positions[i].x - 15,
                     y: positions[i].y,
-                    targetY: 100,
+                    targetY: this.formationStopPosition - 20 + (i % 3) * 15,  // Zatrzymanie na 40% wysokości ekranu
                     moveParameters: {
                         disperseAfter: 180  // Rozproszenie po 3 sekundach
                     },
@@ -204,39 +212,39 @@ export class FormationManager {
             }, i * 25);
         }
     }
-    
+
     // Dwie grupy przeciwników po bokach ekranu
     initSidesFormation() {
-        this.formationEnemiesLeft = 6;  // 3 po każdej stronie
-        const baseY = -30;
-        const leftX = 50;
-        const rightX = this.canvas.width - 80;
-        const verticalSpacing = 40;
-        
-        for (let i = 0; i < this.formationEnemiesLeft; i++) {
-            setTimeout(() => {
-                const isLeftSide = i < 3;
-                
-                const enemy = this.entityFactory.createEnemy({
-                    special: i === 2 || i === 5,  // Ostatni w każdej grupie jest specjalny
-                    formationIndex: i,
-                    movementType: 'hover',
-                    x: isLeftSide ? leftX : rightX,
-                    y: baseY + (i % 3) * verticalSpacing,
-                    targetY: 100 + (i % 3) * 30,
-                    moveParameters: {
-                        moveInwards: isLeftSide ? 1 : -1  // Kierunek ruchu do środka
-                    },
-                    maxShootCooldown: 60 + (i % 3) * 40
-                });
-                
-                // Dodajemy przeciwnika do tablicy enemies w gameLogic
-                if (this.gameEnemiesRef) {
-                    this.gameEnemiesRef.push(enemy);
-                }
-            }, i * 20);
-        }
+    this.formationEnemiesLeft = 6;  // 3 po każdej stronie
+    const baseY = -30;
+    const leftX = 50;
+    const rightX = this.canvas.width - 80;
+    const verticalSpacing = 40;
+    
+    for (let i = 0; i < this.formationEnemiesLeft; i++) {
+        setTimeout(() => {
+            const isLeftSide = i < 3;
+            
+            const enemy = this.entityFactory.createEnemy({
+                special: i === 2 || i === 5,  // Ostatni w każdej grupie jest specjalny
+                formationIndex: i,
+                movementType: 'hover',
+                x: isLeftSide ? leftX : rightX,
+                y: baseY + (i % 3) * verticalSpacing,
+                targetY: this.formationStopPosition + (i % 3) * 30,  // Zatrzymanie na 40% wysokości ekranu
+                moveParameters: {
+                    moveInwards: isLeftSide ? 1 : -1  // Kierunek ruchu do środka
+                },
+                maxShootCooldown: 60 + (i % 3) * 40
+            });
+            
+            // Dodajemy przeciwnika do tablicy enemies w gameLogic
+            if (this.gameEnemiesRef) {
+                this.gameEnemiesRef.push(enemy);
+            }
+        }, i * 20);
     }
+}
     
     // Formacja łukowa/półkole
     initArcFormation() {
@@ -256,7 +264,7 @@ export class FormationManager {
                     movementType: 'hover',
                     x: centerX + Math.cos(angle) * radius - 15,
                     y: baseY + Math.sin(angle) * radius/2,
-                    targetY: 110,
+                    targetY: this.formationStopPosition - 10 + Math.sin(angle) * 30,  // Zatrzymanie na 40% wysokości ekranu
                     moveParameters: {
                         angle: angle
                     },

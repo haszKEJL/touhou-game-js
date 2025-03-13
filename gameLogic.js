@@ -1,7 +1,6 @@
 import { CONFIG } from './config.js';
 import { AUDIO } from './assets.js';
-import { Player } from './entities.js';
-import { EntityFactory } from './entities.js';
+import { Player, EntityFactory, Star } from './entities.js';  
 import { FormationManager } from './formation.js';
 
 // Główna klasa logiki gry
@@ -22,6 +21,8 @@ export class GameLogic {
         // Listy obiektów w grze
         this.enemies = [];
         this.enemyBullets = [];
+        this.stars = [];  // Dodaj tę linię - lista gwiazdek
+
         
         // Stan gry
         this.score = 0;
@@ -61,6 +62,8 @@ reset() {
     // Reset list obiektów
     this.enemies = [];
     this.enemyBullets = [];
+    this.stars = [];  // Dodaj tę linię - reset tablicy gwiazdek
+
     
     // Reset gracza
     this.player.reset();
@@ -107,6 +110,9 @@ update(keys) {
     
     // Aktualizuj gracza
     this.player.update(keys);
+
+    // Aktualizuj gwiazdki niezależnie od stanu przeciwników
+    this.updateStars();
     
     // Aktualizuj przeciwników i pociski tylko jeśli przeciwnicy są włączeni
     if (this.enemiesEnabled) {
@@ -136,6 +142,35 @@ update(keys) {
         }
     }
 }
+
+    updateStars() {
+        // Aktualizacja pozycji gwiazdek i usunięcie tych, które dotknęły dolnej krawędzi ekranu
+        for (let i = this.stars.length - 1; i >= 0; i--) {
+            const star = this.stars[i];
+            // Przekazuj wysokość canvasu, aby sprawdzić czy gwiazdka dotknęła dolnej krawędzi
+            const touchedBottom = star.update(this.canvas.height);
+            
+            // Sprawdź kolizje z graczem
+            if (!star.collected && this.checkStarCollision(star, this.player)) {
+                star.collected = true;
+                this.player.powerStars++;
+                this.stars.splice(i, 1);
+            } 
+            // Usuń gwiazdkę tylko gdy dotknęła dolnej krawędzi ekranu
+            else if (touchedBottom) {
+                this.stars.splice(i, 1);
+            }
+        }
+    }
+
+    checkStarCollision(star, player) {
+        return (
+            player.x < star.x + star.width &&
+            player.x + player.width > star.x &&
+            player.y < star.y + star.height &&
+            player.y + player.height > star.y
+        );
+    }
 
     // Metoda do włączania przeciwników po zakończeniu dialogów wprowadzających
     enableEnemies() {
@@ -364,6 +399,15 @@ update(keys) {
                     if (enemy.health <= 0) {
                         // Przyznaj punkty za zniszczenie
                         this.score += enemy.special ? 500 : 200;
+                        
+                        // Losowo stwórz gwiazdkę w miejscu zniszczonego przeciwnika
+                        const dropChance = enemy.special ? 
+                            CONFIG.powerups.specialDropChance || 0.7 : 
+                            CONFIG.powerups.dropChance || 0.3;
+                            
+                        if (Math.random() < dropChance) {
+                            this.stars.push(new Star(enemy.x + enemy.width/2, enemy.y + enemy.height/2));
+                        }
                         
                         // Dla formacji zmniejszamy licznik pozostałych przeciwników
                         if (enemy.formationIndex !== undefined && enemy.formationIndex >= 0) {

@@ -35,6 +35,7 @@ export class Renderer {
         gameLogic.player.draw(this.ctx);
         this.drawEnemies(gameLogic.enemies);
         this.drawEnemyBullets(gameLogic.enemyBullets);
+        this.drawStars(gameLogic.stars); 
         
         // Rysuj UI
         this.drawUI(gameLogic);
@@ -103,8 +104,51 @@ export class Renderer {
         
         // Rysuj życia
         this.drawLives(gameLogic.lives);
+        
+        // Rysuj licznik gwiazdek mocy
+        this.drawPowerStars(gameLogic.player.powerStars);
     }
     
+    drawStars(stars) {
+        for (const star of stars) {
+            star.draw(this.ctx);
+        }
+    }
+    
+    drawPowerStars(powerStars) {
+        // Pozycja licznika gwiazdek (pod życiami)
+        const x = this.canvas.width - 120;
+        const y = 50;
+        
+        // Rysuj ikonę gwiazdki
+        const starSize = 20;
+        if (IMAGES.star && IMAGES.star.complete) {
+            this.ctx.save();
+            this.ctx.translate(x, y);
+            // Dodaj delikatne obracanie ikony dla efektu
+            const rotation = Date.now() * 0.002 % (Math.PI * 2);
+            this.ctx.drawImage(IMAGES.star, -starSize/2, -starSize/2, starSize, starSize);
+            this.ctx.restore();
+        } else {
+            // Alternatywne rysowanie gwiazdki, jeśli obrazek nie jest dostępny
+            this.drawStarShape(x, y, starSize);
+        }
+        
+        // Rysuj licznik
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = '18px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(`× ${powerStars}`, x + 20, y + 5);
+        
+        // Rysuj wskaźnik ulepszonego strzału
+        if (powerStars >= 15) {
+            this.ctx.fillStyle = '#66ffff';
+            this.ctx.font = '14px Arial';
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText('Ulepszony strzał!', x - 35, y + 25);
+        }
+    }
+
     // Rysuj życia gracza
     drawLives(lives) {
         const heartSize = 25;
@@ -332,5 +376,46 @@ export class Renderer {
                this.ctx.font = '20px Arial';
                this.ctx.fillText('Przygotuj się...', this.canvas.width / 2, this.canvas.height / 3 + 30);
            }
+       }
+
+       // Pomocnicza metoda do rysowania kształtu gwiazdki
+       drawStarShape(x, y, size) {
+           const spikes = 5;
+           const outerRadius = size / 2;
+           const innerRadius = outerRadius / 2;
+           
+           this.ctx.save();
+           this.ctx.translate(x, y);
+           
+           // Dodaj delikatne obracanie ikony dla efektu
+           const rotation = Date.now() * 0.002 % (Math.PI * 2);
+           this.ctx.rotate(rotation);
+           
+           this.ctx.beginPath();
+           this.ctx.fillStyle = '#ffdd00';
+           
+           for (let i = 0; i < spikes * 2; i++) {
+               const radius = i % 2 === 0 ? outerRadius : innerRadius;
+               const angle = (Math.PI * i) / spikes;
+               const dx = Math.cos(angle) * radius;
+               const dy = Math.sin(angle) * radius;
+               
+               if (i === 0) {
+                   this.ctx.moveTo(dx, dy);
+               } else {
+                   this.ctx.lineTo(dx, dy);
+               }
+           }
+           
+           this.ctx.closePath();
+           this.ctx.fill();
+           
+           // Dodaj błysk w środku
+           this.ctx.fillStyle = '#ffffff';
+           this.ctx.beginPath();
+           this.ctx.arc(0, 0, innerRadius / 3, 0, Math.PI * 2);
+           this.ctx.fill();
+           
+           this.ctx.restore();
        }
    }
