@@ -6,12 +6,18 @@ export const IMAGES = {};
 // Dźwięki
 export const AUDIO = {};
 
-// Funkcja ładująca wszystkie zasoby
-export function loadAssets() {
+// Zmodyfikuj funkcję loadAssets aby przekazać portrety do menedżera dialogów
+export function loadAssets(dialogueManager = null) {
     return Promise.all([
         loadImages(),
         loadAudio()
-    ]);
+    ]).then(() => {
+        if (dialogueManager) {
+            // Ustaw portrety w menedżerze dialogów, jeśli jest dostępny
+            if (IMAGES.playerPortrait) dialogueManager.portraits.player = IMAGES.playerPortrait;
+            if (IMAGES.bossPortrait) dialogueManager.portraits.boss = IMAGES.bossPortrait;
+        }
+    });
 }
 
 // Ładowanie obrazków
@@ -21,7 +27,10 @@ async function loadImages() {
         enemy: 'enemie.png',
         specialEnemy: 'mid-boss.png',
         heart: 'heart.png',
-        backgroundFar: 'background-far.jpg'
+        backgroundFar: 'background-far.jpg',
+        // Dodaj portrety postaci
+        playerPortrait: 'player-portrait.png',
+        bossPortrait: 'boss-portrait.png'
     };
     
     const promises = [];

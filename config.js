@@ -20,7 +20,7 @@ export const CONFIG = {
     },
     // Formacje
     formations: {
-        cooldown: 180,
+        cooldown: 120,
         types: {
             LINE: 0,
             V_SHAPE: 1,

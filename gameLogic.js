@@ -6,6 +6,7 @@ import { FormationManager } from './formation.js';
 
 // Główna klasa logiki gry
 export class GameLogic {
+    // W konstruktorze dodaj flagi do kontroli dialogów
     constructor(canvas) {
         this.canvas = canvas;
         
@@ -31,100 +32,128 @@ export class GameLogic {
         this.gameTimer = 0;
         this.stageNameVisible = false;
         this.stageNameTimer = 0;
-        this.enemiesEnabled = false;
+        this.enemiesEnabled = false;  // Początkowo przeciwnicy są wyłączeni
         this.musicVolume = CONFIG.audio.defaultVolume;
         
         // Boss
         this.bossTimer = 0;
         this.bossActive = false;
+        
+        // Flagi dla dialogów
+        this.shouldStartBossDialogue = false;
+        this.shouldStartEndingDialogue = false;
     }
     
-    // Resetowanie stanu gry
-    reset() {
-        this.score = 0;
-        this.lives = CONFIG.player.startLives;
-        this.gameOver = false;
-        this.gameWon = false;
-        this.gameStarted = true;
-        this.gameTimer = 0;
-        this.stageNameVisible = true;
-        this.stageNameTimer = 0;
-        this.enemiesEnabled = false;
-        
-        // Reset list obiektów
-        this.enemies = [];
-        this.enemyBullets = [];
-        
-        // Reset gracza
-        this.player.reset();
-        
-        // Reset bossa
-        this.bossTimer = 0;
-        this.bossActive = false;
-        
-        // Reset formacji i ustaw referencję do tablicy przeciwników
-        this.formationManager.reset();
-        this.formationManager.setEnemiesReference(this.enemies);
-        
-        // Odtworzenie muzyki
-        if (AUDIO.bgMusic) {
-            AUDIO.bgMusic.currentTime = 0;
-            AUDIO.bgMusic.volume = this.musicVolume;
-            AUDIO.bgMusic.play().catch(error => {
-                console.log("Autoplay prevented:", error);
-            });
-        }
-    }
+    // Metoda resetowania gry
+reset() {
+    this.score = 0;
+    this.lives = CONFIG.player.startLives;
+    this.gameOver = false;
+    this.gameWon = false;
+    this.gameStarted = true;
+    this.gameTimer = 0;
+    this.stageNameVisible = false; // Zmieniliśmy na false, bo dialogi przejmą tę rolę
+    this.stageNameTimer = 0;
     
-    // Aktualizacja stanu gry
-    update(keys) {
-        if (!this.gameStarted) {
-            // Ekran startowy - tylko aktualizacja głośności
-            this.updateVolume(keys);
-            return;
-        }
-        
-        // Aktualizuj licznik czasu gry
-        this.updateGameTimer();
-        
-        // Aktualizuj głośność muzyki
+    // Początkowe wyłączenie przeciwników - włączą się po dialogach
+    this.enemiesEnabled = false;
+    
+    // Reset list obiektów
+    this.enemies = [];
+    this.enemyBullets = [];
+    
+    // Reset gracza
+    this.player.reset();
+    
+    // Reset bossa
+    this.bossTimer = 0;
+    this.bossActive = false;
+    
+    // Reset flag dialogowych
+    this.shouldStartBossDialogue = false;
+    this.shouldStartEndingDialogue = false;
+    
+    // Reset formacji i ustaw referencję do tablicy przeciwników
+    this.formationManager.reset();
+    this.formationManager.setEnemiesReference(this.enemies);
+    
+    // Odtworzenie muzyki
+    if (AUDIO.bgMusic) {
+        AUDIO.bgMusic.currentTime = 0;
+        AUDIO.bgMusic.volume = this.musicVolume;
+        AUDIO.bgMusic.play().catch(error => {
+            console.log("Autoplay prevented:", error);
+        });
+    }
+}
+    
+    // Modyfikacja metody update
+update(keys) {
+    if (!this.gameStarted) {
+        // Ekran startowy - tylko aktualizacja głośności
         this.updateVolume(keys);
+        return;
+    }
+    
+    // Aktualizuj licznik czasu gry
+    this.updateGameTimer();
+    
+    // Aktualizuj głośność muzyki
+    this.updateVolume(keys);
+    
+    if (this.gameOver || this.gameWon) {
+        return; // Zatrzymaj aktualizację, gdy gra jest zakończona
+    }
+    
+    // Aktualizuj gracza
+    this.player.update(keys);
+    
+    // Aktualizuj przeciwników i pociski tylko jeśli przeciwnicy są włączeni
+    if (this.enemiesEnabled) {
+        this.updateEnemies();
+        this.updateEnemyBullets();
         
-        if (this.gameOver || this.gameWon) {
-            return; // Zatrzymaj aktualizację, gdy gra jest zakończona
-        }
+        // Sprawdź kolizje
+        this.checkCollisions();
         
-        // Aktualizuj gracza
-        this.player.update(keys);
-        
-        // Aktualizuj przeciwników i pociski tylko jeśli przeciwnicy są włączeni
-        if (this.enemiesEnabled) {
-            this.updateEnemies();
-            this.updateEnemyBullets();
+        // Aktualizuj formacje jeśli boss nie jest aktywny
+        if (!this.bossActive) {
+            // Aktualizuj referencję do tablicy wrogów i formacje
+            this.formationManager.setEnemiesReference(this.enemies);
+            this.formationManager.update(this.enemies);
             
-            // Sprawdź kolizje
-            this.checkCollisions();
+            // Losowe dodawanie pojedynczych przeciwników
+            if (!this.formationManager.formationActive && Math.random() < 0.005 && this.enemies.length < 3) {
+                this.enemies.push(this.entityFactory.createEnemy());
+            }
             
-            // Aktualizuj formacje jeśli boss nie jest aktywny
-            if (!this.bossActive) {
-                // Aktualizuj referencję do tablicy wrogów i formacje
-                this.formationManager.setEnemiesReference(this.enemies);
-                this.formationManager.update(this.enemies);
-                
-                // Losowe dodawanie pojedynczych przeciwników
-                if (!this.formationManager.formationActive && Math.random() < 0.005 && this.enemies.length < 3) {
-                    this.enemies.push(this.entityFactory.createEnemy());
-                }
-                
-                // Aktualizuj timer bossa
-                this.bossTimer++;
-                if (this.bossTimer >= CONFIG.boss.appearTime) {
-                    this.spawnBoss();
-                }
+            // Aktualizuj timer bossa
+            this.bossTimer++;
+            //console.log("Boss timer:", this.bossTimer, "/", CONFIG.boss.appearTime);
+            if (this.bossTimer >= CONFIG.boss.appearTime) {
+                this.spawnBoss();
             }
         }
     }
-    
+}
+
+    // Metoda do włączania przeciwników po zakończeniu dialogów wprowadzających
+    enableEnemies() {
+        this.enemiesEnabled = true;
+    }
+
+        // Metoda do rozpoczęcia walki z bossem po zakończeniu dialogów z bossem
+    startBossFight() {
+        console.log("Boss fight started!");
+        // Dodatkowa inicjalizacja bossa, jeśli potrzebna
+    }
+
+    // Metoda do pokazania ekranu zwycięstwa po zakończeniu dialogów końcowych
+    showVictoryScreen() {
+        this.gameWon = true;
+    }
+
+        
     // Aktualizacja licznika czasu gry
     updateGameTimer() {
         if (this.gameStarted && !this.gameOver && !this.gameWon) {
@@ -425,7 +454,7 @@ export class GameLogic {
         }
     }
     
-    // Obsługa pojawienia się bossa
+    // Modyfikacja metody spawnBoss
     spawnBoss() {
         console.log("Boss time!");
         this.bossActive = true;
@@ -436,12 +465,8 @@ export class GameLogic {
         // Usuń wszystkie pociski przeciwników
         this.enemyBullets = [];
         
-        // Stwórz bossa
-        const boss = this.entityFactory.createBoss();
-        this.enemies.push(boss);
-        
-        // Wyświetl informację o bossie
-        this.showBossName();
+        // Ustaw flagę do rozpoczęcia dialogu z bossem
+        this.shouldStartBossDialogue = true;
     }
     
     // Wyświetla nazwę bossa
@@ -451,12 +476,13 @@ export class GameLogic {
     }
     
     // Obsługa pokonania bossa
+    // Modyfikacja metody handleBossDefeated
     handleBossDefeated() {
         // Dodaj duży bonus punktowy za pokonanie bossa
         this.score += 10000;
         
-        // Ustaw flagę zwycięstwa i wyświetl ekran zwycięstwa
-        this.gameWon = true;
+        // Ustaw flagę zakończenia dialogu
+        this.shouldStartEndingDialogue = true;
         
         // Zatrzymaj muzykę
         if (AUDIO.bgMusic) {
