@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Touhou-Like Game</title>
+    <title>Touhou-like Game</title>
     <style>
         body {
             margin: 0;
@@ -13,22 +13,22 @@
             align-items: center;
             height: 100vh;
             background-color: #000;
+            overflow: hidden;
         }
         canvas {
-            border: 1px solid #333;
+            border: 2px solid #336699;
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas" width="600" height="800"></canvas>
     
-    <!-- Wczytaj skrypty w odpowiedniej kolejności -->
-    <script src="config.js"></script>
-    <script src="entities.js"></script>
-    <script src="renderer.js"></script> <!-- Renderer musi być przed main.js -->
-    <script src="entityFactory.js"></script>
-    <script src="gameLogic.js"></script>
-    <script src="input.js"></script>
-    <script src="main.js"></script>
+    <script type="module" src="config.js"></script>
+    <script type="module" src="assets.js"></script>
+    <script type="module" src="entities.js"></script>
+    <script type="module" src="formation.js"></script>
+    <script type="module" src="gameLogic.js"></script>
+    <script type="module" src="renderer.js"></script>
+    <script type="module" src="game.js"></script>
 </body>
 </html>

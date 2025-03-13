@@ -1,287 +1,336 @@
-// Funkcje rysowania elementów gry
+import { IMAGES } from './assets.js';
+import { CONFIG } from './config.js';
 
-function drawBackground() {
-    // Najpierw narysuj gradient nieba jako tło
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#000033'); // Ciemny niebieski u góry
-    gradient.addColorStop(0.7, '#335577'); // Jaśniejszy niebieski w dole
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+// Klasa renderująca elementy gry
+export class Renderer {
+    constructor(canvas, ctx) {
+        this.canvas = canvas;
+        this.ctx = ctx;
+    }
     
-    // Narysuj każdą warstwę tła (od najdalszej do najbliższej)
-    for (const layer of backgrounds) {
-        if (layer.img.complete) {
+    // Główna funkcja renderująca
+    render(gameLogic) {
+        // Rysuj tło
+        this.drawBackground();
+        
+        if (!gameLogic.gameStarted) {
+            // Ekran startowy
+            this.drawStartScreen(gameLogic.musicVolume);
+            return;
+        }
+        
+        if (gameLogic.gameOver) {
+            // Ekran końca gry
+            this.drawGameOverScreen(gameLogic.score);
+            return;
+        }
+        
+        if (gameLogic.gameWon) {
+            // Ekran zwycięstwa
+            this.drawVictoryScreen(gameLogic.score);
+            return;
+        }
+        
+        // Rysuj elementy gry
+        gameLogic.player.draw(this.ctx);
+        this.drawEnemies(gameLogic.enemies);
+        this.drawEnemyBullets(gameLogic.enemyBullets);
+        
+        // Rysuj UI
+        this.drawUI(gameLogic);
+
+        // Dodaj pasek postępu do bossa
+        if (gameLogic.gameStarted && gameLogic.enemiesEnabled && !gameLogic.bossActive) {
+            this.drawBossProgressBar(gameLogic.bossTimer, CONFIG.boss.appearTime);
+        }
+
+        // Rysuj odliczanie do przeciwników
+        if (gameLogic.gameStarted && !gameLogic.enemiesEnabled && !gameLogic.stageNameVisible) {
+            this.drawCountdown(gameLogic.gameTimer);
+        }
+        
+        // Rysuj nazwę etapu (jeśli widoczna)
+        if (gameLogic.stageNameVisible) {
+            this.drawStageName(gameLogic.stageNameTimer, gameLogic.bossActive);
+        }
+    }
+    
+    // Rysuj tło
+    drawBackground() {
+        // Narysuj gradient nieba jako tło
+        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+        gradient.addColorStop(0, '#000033'); // Ciemny niebieski u góry
+        gradient.addColorStop(0.7, '#335577'); // Jaśniejszy niebieski w dole
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Rysuj tło z obrazka (jeśli jest dostępne)
+        if (IMAGES.backgroundFar && IMAGES.backgroundFar.complete) {
             try {
-                // Aktualizuj pozycję warstwy
-                layer.x -= layer.speed;
+                const backgroundWidth = 1200; // Dostosuj do szerokości obrazka
+                const x = (Date.now() * 0.02) % backgroundWidth;
                 
-                // Resetuj pozycję, gdy obrazek przewinie się
-                if (layer.x <= -layer.width + canvas.width) {
-                    layer.x = 0;
-                }
-                
-                // Rysuj dwie kopie obok siebie
-                ctx.drawImage(layer.img, layer.x, 0, layer.width, canvas.height);
-                ctx.drawImage(layer.img, layer.x + layer.width, 0, layer.width, canvas.height);
+                // Rysuj dwie kopie obok siebie dla płynnego przewijania
+                this.ctx.drawImage(IMAGES.backgroundFar, -x, 0, backgroundWidth, this.canvas.height);
+                this.ctx.drawImage(IMAGES.backgroundFar, backgroundWidth - x, 0, backgroundWidth, this.canvas.height);
             } catch (error) {
                 console.error("Błąd rysowania tła:", error);
             }
         }
     }
-}
-
-function drawStartScreen() {
-    // Nakładka na tło dla lepszej czytelności tekstu
-    ctx.fillStyle = 'rgba(0, 17, 51, 0.7)'; // Półprzezroczysty ciemnoniebieski
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    ctx.fillStyle = 'white';
-    ctx.font = '36px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('TOUHOU-LIKE GAME', canvas.width / 2, canvas.height / 3);
-    
-    ctx.font = '24px Arial';
-    ctx.fillText('Sterowanie:', canvas.width / 2, canvas.height / 2 - 40);
-    ctx.font = '16px Arial';
-    ctx.fillText('Strzałki - ruch postaci', canvas.width / 2, canvas.height / 2 - 10);
-    ctx.fillText('Z - strzał', canvas.width / 2, canvas.height / 2 + 10);
-    ctx.fillText('Shift - tryb skupienia (wolniejszy ruch)', canvas.width / 2, canvas.height / 2 + 30);
-    
-    // Dodaj informację o sterowaniu głośnością
-    ctx.fillText('Q/W - zmniejsz/zwiększ głośność muzyki', canvas.width / 2, canvas.height / 2 + 50);
-    
-    // Wyświetl aktualny poziom głośności
-    ctx.fillStyle = '#aaaaff';
-    ctx.fillText(`Głośność: ${Math.round(musicVolume * 100)}%`, canvas.width / 2, canvas.height / 2 + 70);
-    
-    // Narysuj graficzny pasek głośności
-    const volumeBarWidth = 150;
-    const volumeBarHeight = 10;
-    const volumeBarX = canvas.width / 2 - volumeBarWidth / 2;
-    const volumeBarY = canvas.height / 2 + 85;
-    
-    // Tło paska głośności
-    ctx.fillStyle = '#333';
-    ctx.fillRect(volumeBarX, volumeBarY, volumeBarWidth, volumeBarHeight);
-    
-    // Aktualny poziom głośności
-    ctx.fillStyle = '#4488ff';
-    ctx.fillRect(volumeBarX, volumeBarY, volumeBarWidth * musicVolume, volumeBarHeight);
-    
-    // Pulsujący tekst "Naciśnij ENTER"
-    const pulseIntensity = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
-    ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + pulseIntensity * 0.5})`;
-    ctx.font = '24px Arial';
-    ctx.fillText('Naciśnij ENTER, aby rozpocząć', canvas.width / 2, canvas.height * 0.85);
-}
-
-function drawPlayer() {
-    // Sprawdź efekt migania przy nieśmiertelności
-    if (player.invincible && Math.floor(player.invincibleTimer / 5) % 2 === 0) {
-        // Nie rysuj gracza co kilka klatek, aby uzyskać efekt migania
-        return;
-    }
-    
-    // Sprawdz czy obrazek jest załadowany przed narysowaniem
-    if (player.image.complete) {
-        ctx.drawImage(player.image, player.x, player.y, player.width, player.height);
-        
-        // Dodaj wizualny efekt trybu skupienia
-        if (player.focusing) {
-            // Narysuj efekt wizualny (np. krąg wokół gracza)
-            ctx.beginPath();
-            ctx.arc(player.x + player.width/2, player.y + player.height/2, 
-                     player.width * 0.8, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.closePath();
+    // Rysuj przeciwników
+    drawEnemies(enemies) {
+        for (const enemy of enemies) {
+            enemy.draw(this.ctx);
         }
-    } else {
-        // Fallback w przypadku gdy obrazek się nie załadował
-        ctx.fillStyle = player.color;
-        ctx.fillRect(player.x, player.y, player.width, player.height);
     }
     
-    // Rysowanie pocisków gracza
-    ctx.fillStyle = player.bullets[0] ? player.bullets[0].color : '#00ffcc';
-    for (const bullet of player.bullets) {
-        ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+    // Rysuj pociski przeciwników
+    drawEnemyBullets(bullets) {
+        for (const bullet of bullets) {
+            bullet.draw(this.ctx);
+        }
     }
-}
-function drawBossTimer() {
-    if (gameStarted && !gameOver && enemiesEnabled && !bossActive) {
-        // Oblicz procent ukończenia odliczania
+    
+    // Rysuj interfejs użytkownika
+    drawUI(gameLogic) {
+        // Rysuj wynik
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = '18px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(`Wynik: ${gameLogic.score}`, 10, 25);
+        
+        // Rysuj życia
+        this.drawLives(gameLogic.lives);
+    }
+    
+    // Rysuj życia gracza
+    drawLives(lives) {
+        const heartSize = 25;
+        const padding = 5;
+        const startX = this.canvas.width - (heartSize * lives) - (padding * (lives + 1));
+        
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = '18px Arial';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText('Życia:', startX - padding * 2, 25);
+        
+        for (let i = 0; i < lives; i++) {
+            const x = startX + (heartSize + padding) * i;
+            const y = 10;
+            
+            if (IMAGES.heart && IMAGES.heart.complete) {
+                this.ctx.drawImage(IMAGES.heart, x, y, heartSize, heartSize);
+            } else {
+                // Fallback jeśli obrazek nie jest dostępny
+                this.drawHeartShape(x, y, heartSize);
+            }
+        }
+    }
+    drawBossProgressBar(bossTimer, bossAppearTime) {
+        // Parametry paska postępu
+        const barWidth = this.canvas.width * 0.8;
+        const barHeight = 5;
+        const barX = (this.canvas.width - barWidth) / 2;
+        const barY = this.canvas.height - 20;
+        
+        // Progress jako procent ukończenia
         const progress = Math.min(1, bossTimer / bossAppearTime);
         
-        // Pasek tła (ciemniejszy)
-        ctx.fillStyle = 'rgba(50, 0, 0, 0.7)';
-        ctx.fillRect(0, canvas.height - 5, canvas.width, 5);
+        // Rysowanie tła paska
+        this.ctx.fillStyle = 'rgba(50, 50, 50, 0.5)';
+        this.ctx.fillRect(barX, barY, barWidth, barHeight);
         
-        // Pasek postępu (czerwony)
-        ctx.fillStyle = 'rgb(255, 0, 0)';
-        ctx.fillRect(0, canvas.height - 5, canvas.width * progress, 5);
+        // Rysowanie paska postępu
+        // Kolor od zielonego do czerwonego w miarę zbliżania się bossa
+        const red = Math.floor(255 * progress);
+        const green = Math.floor(255 * (1 - progress));
+        this.ctx.fillStyle = `rgb(${red}, ${green}, 0)`;
+        this.ctx.fillRect(barX, barY, barWidth * progress, barHeight);
         
-        // Opcjonalnie dodaj efekt migotania, gdy zbliża się koniec odliczania
-        if (progress > 0.8) {
-            // Dodajemy efekt migotania poprzez zmienianie przezroczystości
-            const flash = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
-            ctx.fillStyle = `rgba(255, 255, 255, ${flash * 0.7})`;
-            ctx.fillRect(0, canvas.height - 5, canvas.width * progress, 5);
-        }
-        
-        // Opcjonalnie dodaj napis "BOSS" po prawej stronie
-        if (progress > 0.5) {
-            ctx.fillStyle = 'white';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'right';
-            ctx.fillText('BOSS', canvas.width - 10, canvas.height - 10);
+        // Opcjonalnie - tekst informacyjny
+        if (progress > 0.75) {
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('Boss nadchodzi!', this.canvas.width / 2, barY - 5);
         }
     }
-}
 
-function drawEnemies() {
-    // Rysowanie przeciwników
-    for (const enemy of enemies) {
-        if (enemy.image && enemy.image.complete) {
-            ctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
-            
-            // Opcjonalnie - pasek zdrowia dla specjalnych przeciwników
-            if (enemy.special && enemy.health > 0) {
-                const healthBarWidth = enemy.width;
-                const healthBarHeight = 5;
-                const healthPercent = enemy.health / 3; // 3 to maksymalne zdrowie specjalnego przeciwnika
-                
-                // Tło paska zdrowia
-                ctx.fillStyle = '#333';
-                ctx.fillRect(enemy.x, enemy.y - 8, healthBarWidth, healthBarHeight);
-                
-                // Pasek zdrowia
-                ctx.fillStyle = '#0f0';
-                ctx.fillRect(enemy.x, enemy.y - 8, healthBarWidth * healthPercent, healthBarHeight);
-            }
-        } else {
-            // Fallback jeśli obrazek nie jest dostępny
-            ctx.fillStyle = enemy.color;
-            ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-        }
+    // Rysuj kształt serca (fallback)
+    drawHeartShape(x, y, size) {
+        this.ctx.fillStyle = '#ff3366';
+        
+        // Dwa okręgi tworzące górną część serca
+        this.ctx.beginPath();
+        this.ctx.arc(x + size/4, y + size/3, size/4, 0, Math.PI * 2);
+        this.ctx.arc(x + size*3/4, y + size/3, size/4, 0, Math.PI * 2);
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Dolna część serca (trójkąt)
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + size/2, y + size*3/4);
+        this.ctx.lineTo(x + size/4, y + size/2);
+        this.ctx.lineTo(x + size/2, y + size/4);
+        this.ctx.lineTo(x + size*3/4, y + size/2);
+        this.ctx.closePath();
+        this.ctx.fill();
     }
     
-    // Rysowanie pocisków przeciwników
-    for (const bullet of enemyBullets) {
-        ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
-        ctx.fillStyle = bullet.color;
-        ctx.fill();
-        ctx.closePath();
-    }
-}
-
-function drawCountdown() {
-    if (gameStarted && !enemiesEnabled && !stageNameVisible) {
+    // Rysuj odliczanie do pojawienia się przeciwników
+    drawCountdown(gameTimer) {
         const secondsLeft = 5 - Math.floor(gameTimer / 60);
         if (secondsLeft > 0) {
-            ctx.fillStyle = 'white';
-            ctx.font = '15px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`Przeciwnicy pojawią się za: ${secondsLeft}`, canvas.width / 2, 50);
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '15px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`Przeciwnicy pojawią się za: ${secondsLeft}`, this.canvas.width / 2, 50);
         }
     }
-}
-
-// Funkcja rysująca nazwę etapu
-function drawStageName() {
-    if (stageNameVisible) {
-        // Tło pod nazwą etapu
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(0, canvas.height / 3 - 30, canvas.width, 80);
-        
-        // Efekt przejścia przy pojawianiu się i znikaniu
-        let alpha = 1.0;
-        
-        // Pojawianie się (pierwsze pół sekundy)
-        if (stageNameTimer < 30) {
-            alpha = stageNameTimer / 30;
-        }
-        // Znikanie (ostatnia sekunda)
-        else if (stageNameTimer > 120) {
-            alpha = 1 - ((stageNameTimer - 120) / 60);
-        }
-        
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        ctx.font = '30px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Stage 1 - Krzychowa Masakra', canvas.width / 2, canvas.height / 3);
-        
-        ctx.font = '20px Arial';
-        ctx.fillText('Przygotuj się...', canvas.width / 2, canvas.height / 3 + 30);
-    }
-}
-
-function drawLives() {
-    // Rysowanie żyć w prawym górnym rogu
-    const heartSize = 25;
-    const padding = 5;
-    const startX = canvas.width - (heartSize * lives) - (padding * (lives + 1));
     
-    ctx.fillStyle = 'white';
-    ctx.font = '18px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText('Życia:', startX - padding * 2, 25);
-    
-    for (let i = 0; i < lives; i++) {
-        const x = startX + (heartSize + padding) * i;
-        const y = 10;
+    // Rysuj ekran startowy
+    drawStartScreen(musicVolume) {
+        // Nakładka na tło dla lepszej czytelności tekstu
+        this.ctx.fillStyle = 'rgba(0, 17, 51, 0.7)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        if (heartImage.complete) {
-            ctx.drawImage(heartImage, x, y, heartSize, heartSize);
-        } else {
-            // Fallback jeśli obrazek nie jest dostępny
-            ctx.fillStyle = '#ff3366';
-            ctx.beginPath();
-            ctx.arc(x + heartSize/4, y + heartSize/3, heartSize/4, 0, Math.PI * 2);
-            ctx.arc(x + heartSize*3/4, y + heartSize/3, heartSize/4, 0, Math.PI * 2);
-            ctx.closePath();
-            ctx.fill();
-            
-            ctx.beginPath();
-            ctx.moveTo(x + heartSize/2, y + heartSize*3/4);
-            ctx.lineTo(x + heartSize/4, y + heartSize/2);
-            ctx.lineTo(x + heartSize/2, y + heartSize/4);
-            ctx.lineTo(x + heartSize*3/4, y + heartSize/2);
-            ctx.closePath();
-            ctx.fill();
-        }
-    }
-}
-
-function drawUI() {
-    // Rysowanie wyniku
-    ctx.fillStyle = 'white';
-    ctx.font = '18px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Wynik: ${score}`, 10, 25);
-    
-    // Rysowanie żyć
-    drawLives();
-    
-    // Rysowanie nazwy etapu (jeśli widoczna)
-    drawStageName();
-    
-    // Dodajemy rysowanie paska czasu do bossa
-    drawBossTimer();
-    
-    if (gameOver) {
-        // Tło Game Over
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Tytuł
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = '36px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('TOUHOU-LIKE GAME', this.canvas.width / 2, this.canvas.height / 3);
         
-        ctx.fillStyle = 'white';
-        ctx.font = '36px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
-        ctx.font = '18px Arial';
-        ctx.fillText(`Twój wynik: ${score}`, canvas.width / 2, canvas.height / 2 + 40);
-        ctx.fillText('Naciśnij ENTER, aby zagrać ponownie', canvas.width / 2, canvas.height / 2 + 70);
-    }
-}
+        // Informacje o sterowaniu
+        this.ctx.font = '24px Arial';
+        this.ctx.fillText('Sterowanie:', this.canvas.width / 2, this.canvas.height / 2 - 40);
+        this.ctx.font = '16px Arial';
+        this.ctx.fillText('Strzałki - ruch postaci', this.canvas.width / 2, this.canvas.height / 2 - 10);
+        this.ctx.fillText('Z - strzał', this.canvas.width / 2, this.canvas.height / 2 + 10);
+        this.ctx.fillText('Shift - tryb skupienia (wolniejszy ruch)', this.canvas.width / 2, this.canvas.height / 2 + 30);
+        this.ctx.fillText('Q/W - zmniejsz/zwiększ głośność muzyki', this.canvas.width / 2, this.canvas.height / 2 + 50);
+        
+        // Głośność
+        this.ctx.fillStyle = '#aaaaff';
+        this.ctx.fillText(`Głośność: ${Math.round(musicVolume * 100)}%`, this.canvas.width / 2, this.canvas.height / 2 + 70);
+        
+           // Pasek głośności
+           const volumeBarWidth = 150;
+           const volumeBarHeight = 10;
+           const volumeBarX = this.canvas.width / 2 - volumeBarWidth / 2;
+           const volumeBarY = this.canvas.height / 2 + 85;
+           
+           // Tło paska głośności
+           this.ctx.fillStyle = '#333';
+           this.ctx.fillRect(volumeBarX, volumeBarY, volumeBarWidth, volumeBarHeight);
+           
+           // Aktualny poziom głośności
+           this.ctx.fillStyle = '#4488ff';
+           this.ctx.fillRect(volumeBarX, volumeBarY, volumeBarWidth * musicVolume, volumeBarHeight);
+           
+           // Pulsujący tekst "Naciśnij ENTER"
+           const pulseIntensity = Math.sin(Date.now() * 0.005) * 0.5 + 0.5;
+           this.ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + pulseIntensity * 0.5})`;
+           this.ctx.font = '24px Arial';
+           this.ctx.fillText('Naciśnij ENTER, aby rozpocząć', this.canvas.width / 2, this.canvas.height * 0.85);
+       }
+       
+       // Rysuj ekran końca gry
+       drawGameOverScreen(score) {
+           // Nakładka na tło
+           this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+           this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+           
+           // Tekst końca gry
+           this.ctx.fillStyle = 'white';
+           this.ctx.font = '36px Arial';
+           this.ctx.textAlign = 'center';
+           this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2);
+           
+           // Wynik
+           this.ctx.font = '18px Arial';
+           this.ctx.fillText(`Twój wynik: ${score}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
+           
+           // Instrukcja ponownej gry
+           this.ctx.fillText('Naciśnij ENTER, aby zagrać ponownie', this.canvas.width / 2, this.canvas.height / 2 + 70);
+       }
+       
+       // Rysuj ekran zwycięstwa
+       drawVictoryScreen(score) {
+           // Nakładka na tło
+           this.ctx.fillStyle = 'rgba(0, 20, 60, 0.8)';
+           this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+           
+           // Tekst zwycięstwa
+           this.ctx.fillStyle = '#ffcc00';
+           this.ctx.font = '36px Arial';
+           this.ctx.textAlign = 'center';
+           this.ctx.fillText('ZWYCIĘSTWO!', this.canvas.width / 2, this.canvas.height / 3);
+           
+           // Gratulacje
+           this.ctx.fillStyle = 'white';
+           this.ctx.font = '24px Arial';
+           this.ctx.fillText('Gratulacje! Pokonałeś bossa!', this.canvas.width / 2, this.canvas.height / 2 - 20);
+           
+           // Wynik
+           this.ctx.font = '18px Arial';
+           this.ctx.fillText(`Twój wynik: ${score}`, this.canvas.width / 2, this.canvas.height / 2 + 30);
+           
+           // Instrukcja ponownej gry
+           this.ctx.fillText('Naciśnij ENTER, aby zagrać ponownie', this.canvas.width / 2, this.canvas.height / 2 + 70);
+           
+           // Efekt gwiazdek zwycięstwa
+           this.drawVictoryEffects();
+       }
+       
+       // Efekty dla ekranu zwycięstwa
+       drawVictoryEffects() {
+           const time = Date.now() * 0.001;
+           
+           // Rysowanie "gwiazdek" zwycięstwa
+           for (let i = 0; i < 20; i++) {
+               const x = this.canvas.width * (0.3 + 0.5 * Math.sin(time + i * 0.7));
+               const y = this.canvas.height * (0.2 + 0.5 * Math.cos(time + i * 0.5));
+               const size = 5 + 3 * Math.sin(time * 2 + i);
+               
+               this.ctx.fillStyle = `hsl(${(time * 50 + i * 20) % 360}, 100%, 70%)`;
+               this.ctx.beginPath();
+               this.ctx.arc(x, y, size, 0, Math.PI * 2);
+               this.ctx.fill();
+           }
+       }
+       
+       // Rysowanie nazwy etapu
+       drawStageName(stageNameTimer, isBossActive) {
+           // Tło pod nazwą etapu
+           this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+           this.ctx.fillRect(0, this.canvas.height / 3 - 30, this.canvas.width, 80);
+           
+           // Efekt przejścia przy pojawianiu się i znikaniu
+           let alpha = 1.0;
+           
+           // Pojawianie się (pierwsze pół sekundy)
+           if (stageNameTimer < 30) {
+               alpha = stageNameTimer / 30;
+           }
+           // Znikanie (ostatnia sekunda)
+           else if (stageNameTimer > 120) {
+               alpha = 1 - ((stageNameTimer - 120) / 60);
+           }
+           
+           this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+           this.ctx.font = '30px Arial';
+           this.ctx.textAlign = 'center';
+           
+           if (isBossActive) {
+               this.ctx.fillText('BOSS - Krzychowa Masakra', this.canvas.width / 2, this.canvas.height / 3);
+               this.ctx.font = '20px Arial';
+               this.ctx.fillText('Przygotuj się na finałową walkę!', this.canvas.width / 2, this.canvas.height / 3 + 30);
+           } else {
+               this.ctx.fillText('Stage 1 - Krzychowa Masakra', this.canvas.width / 2, this.canvas.height / 3);
+               this.ctx.font = '20px Arial';
+               this.ctx.fillText('Przygotuj się...', this.canvas.width / 2, this.canvas.height / 3 + 30);
+           }
+       }
+   }
