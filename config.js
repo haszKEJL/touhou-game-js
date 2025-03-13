@@ -13,6 +13,29 @@ let stageNameVisible = false;
 let stageNameTimer = 0;
 let lives = 3; // Liczba żyć gracza
 
+let bossTimer = 0;
+const bossAppearTime = 3600*2; // Boss pojawia się po 60 sekundach (3600 klatek przy 60fps)
+let bossActive = false; // Flaga wskazująca, czy boss jest aktywny
+
+const FORMATIONS = {
+    // Formacja liniowa pozioma
+    LINE: 0,
+    // Formacja w kształcie litery V
+    V_SHAPE: 1,
+    // Formacja w kształcie diamentu/rombu
+    DIAMOND: 2,
+    // Dwie grupy po bokach ekranu
+    SIDES: 3,
+    // Formacja w kształcie półkola/łuku
+    ARC: 4
+};
+
+// Zmienna kontrolująca aktualnie aktywną formację
+let currentFormation = -1; // -1 oznacza, że nie ma aktywnej formacji
+let formationEnemiesLeft = 0; // Licznik przeciwników pozostałych do utworzenia w formacji
+let formationCooldown = 180; // Cooldown między formacjami (3 sekundy przy 60fps)
+let formationActive = false; // Czy formacja jest aktualnie aktywna
+
 // Ładowanie obrazków
 const playerImage = new Image();
 playerImage.src = 'player.png';
@@ -40,14 +63,15 @@ bgMusic.loop = true;
 bgMusic.volume = musicVolume;
 
 // Flagi kontroli klawiatury
-const keys = {
-    ArrowLeft: false,
-    ArrowRight: false,
-    ArrowUp: false,
-    ArrowDown: false,
-    z: false,
-    Enter: false,
-    Shift: false,
-    q: false,
-    w: false
+let keys = {
+    'ArrowUp': false,
+    'ArrowDown': false,
+    'ArrowLeft': false,
+    'ArrowRight': false,
+    'z': false,
+    'x': false,
+    'Shift': false,
+    'Enter': false,
+    'q': false,
+    'w': false
 };

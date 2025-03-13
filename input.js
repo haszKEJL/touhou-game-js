@@ -1,4 +1,4 @@
-// Obsługa klawiatury
+// Obsługa klawiatury - nie deklarujemy ponownie keys, używamy istniejącej zmiennej
 function setupInputHandlers() {
     window.addEventListener('keydown', (e) => {
         if (e.key in keys) {
@@ -6,7 +6,7 @@ function setupInputHandlers() {
             
             // Start gry po naciśnięciu Enter na ekranie startowym
             if (e.key === 'Enter' && !gameStarted && !gameOver) {
-                startGame();
+                resetGame(); // Używamy resetGame zamiast startGame
             }
             
             // Restart gry po naciśnięciu Enter na ekranie Game Over
@@ -22,3 +22,6 @@ function setupInputHandlers() {
         }
     });
 }
+
+// Eksportujemy funkcję do globalnego zakresu, aby była dostępna w main.js
+window.setupInputHandlers = setupInputHandlers;

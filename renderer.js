@@ -109,6 +109,36 @@ function drawPlayer() {
         ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
     }
 }
+function drawBossTimer() {
+    if (gameStarted && !gameOver && enemiesEnabled && !bossActive) {
+        // Oblicz procent ukończenia odliczania
+        const progress = Math.min(1, bossTimer / bossAppearTime);
+        
+        // Pasek tła (ciemniejszy)
+        ctx.fillStyle = 'rgba(50, 0, 0, 0.7)';
+        ctx.fillRect(0, canvas.height - 5, canvas.width, 5);
+        
+        // Pasek postępu (czerwony)
+        ctx.fillStyle = 'rgb(255, 0, 0)';
+        ctx.fillRect(0, canvas.height - 5, canvas.width * progress, 5);
+        
+        // Opcjonalnie dodaj efekt migotania, gdy zbliża się koniec odliczania
+        if (progress > 0.8) {
+            // Dodajemy efekt migotania poprzez zmienianie przezroczystości
+            const flash = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
+            ctx.fillStyle = `rgba(255, 255, 255, ${flash * 0.7})`;
+            ctx.fillRect(0, canvas.height - 5, canvas.width * progress, 5);
+        }
+        
+        // Opcjonalnie dodaj napis "BOSS" po prawej stronie
+        if (progress > 0.5) {
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText('BOSS', canvas.width - 10, canvas.height - 10);
+        }
+    }
+}
 
 function drawEnemies() {
     // Rysowanie przeciwników
@@ -238,6 +268,9 @@ function drawUI() {
     // Rysowanie nazwy etapu (jeśli widoczna)
     drawStageName();
     
+    // Dodajemy rysowanie paska czasu do bossa
+    drawBossTimer();
+    
     if (gameOver) {
         // Tło Game Over
         ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
@@ -252,6 +285,3 @@ function drawUI() {
         ctx.fillText('Naciśnij ENTER, aby zagrać ponownie', canvas.width / 2, canvas.height / 2 + 70);
     }
 }
-
-// Nie definiuj żadnych inicjalizacji ani gameLoop w tym pliku
-// Pozostaw to do pliku main.js
